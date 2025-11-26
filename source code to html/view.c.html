@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="UTF-8">
+<title>s2html</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="code"><pre>
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;ctype.h&gt;
+
+<span class="reserved_key1">void</span> view(FILE *fptr_sample)
+{
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; <span class="numeric_constant">40</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;SELECTED VIEW DETAILS&quot;</span>);
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; <span class="numeric_constant">40</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;\n\n&quot;</span>);
+
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; <span class="numeric_constant">70</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;\n\t\tMP3 TAG READER AND EDITOR FOR ID3V2\n&quot;</span>);
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; <span class="numeric_constant">70</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;\n&quot;</span>);
+
+    <span class="comment">// SKIP ID3 HEADER
+</span>    fseek(fptr_sample, <span class="numeric_constant">10</span>, SEEK_SET);
+
+    <span class="reserved_key1">char</span> frame_id[<span class="numeric_constant">5</span>];
+    <span class="reserved_key1">unsigned</span> <span class="reserved_key1">char</span> size_bytes[<span class="numeric_constant">4</span>];
+    <span class="reserved_key1">unsigned</span> <span class="reserved_key1">char</span> flags[<span class="numeric_constant">2</span>];
+    <span class="reserved_key1">int</span> frame_size;
+    <span class="reserved_key1">char</span> buffer[<span class="numeric_constant">256</span>];
+
+    <span class="reserved_key1">const</span> <span class="reserved_key1">char</span> *fields[] = {<span class="string">&quot;TITLE&quot;</span>, <span class="string">&quot;ARTIST&quot;</span>, <span class="string">&quot;ALBUM&quot;</span>, <span class="string">&quot;YEAR&quot;</span>, <span class="string">&quot;MUSIC&quot;</span>, <span class="string">&quot;COMMENT&quot;</span>};
+
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> field = <span class="numeric_constant">0</span>; field &lt; <span class="numeric_constant">6</span>; field++)
+    {
+        <span class="reserved_key2">if</span> (fread(frame_id, <span class="numeric_constant">1</span>, <span class="numeric_constant">4</span>, fptr_sample) != <span class="numeric_constant">4</span>)
+            <span class="reserved_key2">break</span>;
+        frame_id[<span class="numeric_constant">4</span>] = <span class="ascii_char">'\0'</span>;
+
+        <span class="reserved_key2">if</span> (fread(size_bytes, <span class="numeric_constant">1</span>, <span class="numeric_constant">4</span>, fptr_sample) != <span class="numeric_constant">4</span>)
+            <span class="reserved_key2">break</span>;
+
+        <span class="reserved_key2">if</span> (fread(flags, <span class="numeric_constant">1</span>, <span class="numeric_constant">2</span>, fptr_sample) != <span class="numeric_constant">2</span>)
+            <span class="reserved_key2">break</span>;
+
+        <span class="comment">// ID3v2.3 uses 4-byte size as normal int
+</span>        frame_size = (size_bytes[<span class="numeric_constant">0</span>] &lt;&lt; <span class="numeric_constant">24</span>) | (size_bytes[<span class="numeric_constant">1</span>] &lt;&lt; <span class="numeric_constant">16</span>) | (size_bytes[<span class="numeric_constant">2</span>] &lt;&lt; <span class="numeric_constant">8</span>) | size_bytes[<span class="numeric_constant">3</span>];
+
+        <span class="reserved_key2">if</span> (frame_size &lt;= <span class="numeric_constant">0</span> || frame_size &gt; <span class="reserved_key2">sizeof</span>(buffer) - <span class="numeric_constant">1</span>)
+            frame_size = <span class="reserved_key2">sizeof</span>(buffer) - <span class="numeric_constant">1</span>;
+
+        <span class="reserved_key2">if</span> (fread(buffer, <span class="numeric_constant">1</span>, frame_size, fptr_sample) != frame_size)
+            <span class="reserved_key2">break</span>;
+
+        <span class="comment">// Skip the encoding byte (first byte)
+</span>        <span class="reserved_key1">int</span> text_len = frame_size - <span class="numeric_constant">1</span>;
+        <span class="reserved_key2">if</span> (text_len &gt; <span class="numeric_constant">0</span>)
+        {
+            <span class="comment">// Copy content safely and null terminate
+</span>            memmove(buffer, buffer + <span class="numeric_constant">1</span>, text_len);
+            buffer[text_len] = <span class="ascii_char">'\0'</span>;
+
+            <span class="comment">// Remove trailing non-printable characters
+</span>            <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = text_len - <span class="numeric_constant">1</span>; i &gt;= <span class="numeric_constant">0</span>; i--)
+            {
+                <span class="reserved_key2">if</span> (!isprint(buffer[i]))
+                    buffer[i] = <span class="ascii_char">'\0'</span>;
+                <span class="reserved_key2">else</span>
+                    <span class="reserved_key2">break</span>;
+            }
+        }
+        <span class="reserved_key2">else</span>
+        {
+            buffer[<span class="numeric_constant">0</span>] = <span class="ascii_char">'\0'</span>;
+        }
+
+        printf(<span class="string">&quot;%s\t\t:%s\n&quot;</span>, fields[field], buffer);
+    }
+
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; <span class="numeric_constant">70</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;\n\t\tDETAILS DISPLAYED SUCCESSFULLY\n&quot;</span>);
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; <span class="numeric_constant">70</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;\n&quot;</span>);
+    <span class="reserved_key2">for</span> (<span class="reserved_key1">int</span> i = <span class="numeric_constant">0</span>; i &lt; strlen(<span class="string">&quot;SELECTED VIEW DETAILS&quot;</span>) + <span class="numeric_constant">80</span>; i++)
+        printf(<span class="string">&quot;-&quot;</span>);
+    printf(<span class="string">&quot;\n&quot;</span>);
+}
+</pre></div>
+</body>
+</html>
